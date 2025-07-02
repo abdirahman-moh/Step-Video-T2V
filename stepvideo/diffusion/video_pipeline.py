@@ -16,7 +16,7 @@ from stepvideo.utils import VideoProcessor
 
 
 def call_api_gen(url, api, port=8080):
-    url =f"http://{url}:{port}/{api}-api"
+    url = f"http://{url}:{port}/{api}-api"
     import aiohttp
     async def _fn(samples, *args, **kwargs):
         if api=='vae':
@@ -32,7 +32,7 @@ def call_api_gen(url, api, port=8080):
         
         async with aiohttp.ClientSession() as sess:
             data_bytes = pickle.dumps(data)
-            async with sess.get(url, data=data_bytes, timeout=12000) as response:
+            async with sess.post(url, data=data_bytes, timeout=12000) as response:
                 result = bytearray()
                 while not response.content.at_eof():
                     chunk = await response.content.read(1024)
@@ -128,7 +128,7 @@ class StepVideoPipeline(DiffusionPipeline):
     def prepare_latents(
         self,
         batch_size: int,
-        num_channels_latents: 64,
+        num_channels_latents: int = 64,
         height: int = 544,
         width: int = 992,
         num_frames: int = 204,

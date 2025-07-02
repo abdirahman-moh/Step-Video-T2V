@@ -105,12 +105,41 @@ class StepVideoModel(ModelMixin, ConfigMixin):
         hidden_states = self.pos_embed(hidden_states)
         return hidden_states
 
-    def prepare_attn_mask(self, encoder_attention_mask, encoder_hidden_states, q_seqlen):
+    def prepare_attn_mask(
+        self,
+        encoder_attention_mask: torch.Tensor,
+        encoder_hidden_states: torch.Tensor,
+        q_seqlen: int,
+    ):
+        """Create a boolean attention mask following PyTorch SDP convention.
+
+        PyTorch´s ``scaled_dot_product_attention`` expects a *bool* mask where
+        ``True`` denotes **positions that should be ignored** and ``False``
+        marks tokens that are allowed to attend. The previous implementation
+        produced the inverse (``True`` for *valid* tokens), effectively making
+        the model attend only to **padding** and block all informative tokens.
+        This patch flips the logic so that valid KV tokens are set to *False*
+        and padded positions to *True*.
+        """
+
         kv_seqlens = encoder_attention_mask.sum(dim=1).int()
-        mask = torch.zeros([len(kv_seqlens), q_seqlen, max(kv_seqlens)], dtype=torch.bool, device=encoder_attention_mask.device)
-        encoder_hidden_states = encoder_hidden_states[:,: max(kv_seqlens)]
+
+        # Initialise everything as *True* (masked). We will switch the valid
+        # region to *False* below.
+        max_kv = int(kv_seqlens.max())
+        mask = torch.ones(
+            (len(kv_seqlens), q_seqlen, max_kv),
+            dtype=torch.bool,
+            device=encoder_attention_mask.device,
+        )
+
+        # Truncate encoder hidden-states to the actual maximum length that will
+        # be attended to – this avoids useless computation on padded tokens.
+        encoder_hidden_states = encoder_hidden_states[:, :max_kv]
+
         for i, kv_len in enumerate(kv_seqlens):
-            mask[i, :, :kv_len] = 1
+            mask[i, :, : kv_len] = False  # allow attention
+
         return encoder_hidden_states, mask
         
         
@@ -149,7 +178,7 @@ class StepVideoModel(ModelMixin, ConfigMixin):
         fps: torch.Tensor=None,
         return_dict: bool = True,
     ):
-        assert hidden_states.ndim==5; "hidden_states's shape should be (bsz, f, ch, h ,w)"
+        assert hidden_states.ndim == 5, "hidden_states's shape should be (bsz, f, ch, h ,w)"
 
         bsz, frame, _, height, width = hidden_states.shape
         height, width = height // self.patch_size, width // self.patch_size

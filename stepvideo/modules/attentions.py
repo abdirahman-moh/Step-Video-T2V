@@ -53,7 +53,7 @@ class Attention(nn.Module):
         causal=False,
         **kwargs
     ):
-        assert xFuserLongContextAttention is not None; 'to use sequence parallel attention, xFuserLongContextAttention should be imported...'
+        assert xFuserLongContextAttention is not None, "To use sequence parallel attention, xFuserLongContextAttention must be installed."
         hybrid_seq_parallel_attn = xFuserLongContextAttention()
         x = hybrid_seq_parallel_attn(
             None, q,k,v, causal=causal

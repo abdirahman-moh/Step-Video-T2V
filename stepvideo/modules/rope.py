@@ -70,7 +70,7 @@ class RoPE3D(RoPE1D):
         output:
             * tokens after appplying RoPE2D (batch_size x ntokens x nheads x dim)
         """
-        assert sum(ch_split) == tokens.size(-1); 
+        assert sum(ch_split) == tokens.size(-1), "Sum of channel splits must equal the last dimension of tokens."
 
         mesh_grid = self.get_mesh_3d(rope_positions, bsz=tokens.shape[0])
         out = []

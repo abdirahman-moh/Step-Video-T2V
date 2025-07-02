@@ -47,7 +47,7 @@ def culens2mask(
     max_seqlen_kv=None,
     is_causal=False
 ):
-    assert len(cu_seqlens) == len(cu_seqlens_kv); "q k v should have same bsz..."
+    assert len(cu_seqlens) == len(cu_seqlens_kv), "q, k, v should have the same batch size."
     bsz = len(cu_seqlens) - 1
     seqlens = cu_seqlens[1:]-cu_seqlens[:-1]
     seqlens_kv = cu_seqlens_kv[1:]-cu_seqlens_kv[:-1]
