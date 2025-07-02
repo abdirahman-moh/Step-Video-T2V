@@ -6,11 +6,34 @@ import pickle
 import argparse
 import threading
 import argparse
+import json
 
 
 device = f'cuda:{torch.cuda.device_count()-1}'
 torch.cuda.set_device(device)
 dtype = torch.bfloat16
+
+def safe_pickle_loads(data):
+    """Safely load pickled data with restricted classes"""
+    try:
+        # Basic validation - check if data looks like pickled data
+        if not data or len(data) < 4:
+            raise ValueError("Invalid pickle data")
+        
+        # For better security, implement a restricted unpickler
+        # This is a simplified version - in production, use a proper restricted unpickler
+        class RestrictedUnpickler(pickle.Unpickler):
+            def find_class(self, module, name):
+                # Only allow safe classes
+                safe_modules = {'torch', 'numpy', 'builtins'}
+                if module.split('.')[0] in safe_modules:
+                    return getattr(__import__(module, fromlist=[name]), name)
+                raise pickle.UnpicklingError(f"Unsafe module: {module}")
+        
+        import io
+        return RestrictedUnpickler(io.BytesIO(data)).load()
+    except Exception as e:
+        raise ValueError(f"Failed to safely unpickle data: {e}")
 
 def parsed_args():
     parser = argparse.ArgumentParser(description="StepVideo API Functions")
@@ -63,7 +86,7 @@ class VAEapi(Resource):
     def get(self):
         with lock:
             try:
-                feature = pickle.loads(request.get_data())
+                feature = safe_pickle_loads(request.get_data())
                 feature['api'] = 'vae'
             
                 feature = {k:v for k, v in feature.items() if v is not None}
@@ -72,7 +95,7 @@ class VAEapi(Resource):
 
             except Exception as e:
                 print("Caught Exception: ", e)
-                return Response(e)
+                return Response(str(e), status=400)
             
             return Response(response)
 
@@ -126,7 +149,7 @@ class Captionapi(Resource):
     def get(self):
         with lock:
             try:
-                feature = pickle.loads(request.get_data())
+                feature = safe_pickle_loads(request.get_data())
                 feature['api'] = 'caption'
             
                 feature = {k:v for k, v in feature.items() if v is not None}
@@ -135,7 +158,7 @@ class Captionapi(Resource):
 
             except Exception as e:
                 print("Caught Exception: ", e)
-                return Response(e)
+                return Response(str(e), status=400)
             
             return Response(response)
 

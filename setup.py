@@ -1,24 +1,58 @@
 from setuptools import find_packages, setup
 import subprocess
+import re
+import os
 
 
 def get_cuda_version():
     try:
-        nvcc_version = subprocess.check_output(["nvcc", "--version"]).decode("utf-8")
-        version_line = [line for line in nvcc_version.split("\n") if "release" in line][
-            0
-        ]
-        cuda_version = version_line.split(" ")[-2].replace(",", "")
+        nvcc_version = subprocess.check_output(["nvcc", "--version"], stderr=subprocess.DEVNULL).decode("utf-8")
+        version_line = [line for line in nvcc_version.split("\n") if "release" in line]
+        if not version_line:
+            return "no_cuda"
+        cuda_version = version_line[0].split(" ")[-2].replace(",", "")
         return "cu" + cuda_version.replace(".", "")
-    except Exception as e:
+    except (subprocess.CalledProcessError, FileNotFoundError, IndexError) as e:
+        print(f"Warning: Could not detect CUDA version: {e}")
         return "no_cuda"
 
 
+def get_version_from_file(filepath):
+    """Safely parse version from __version__.py file"""
+    try:
+        if not os.path.exists(filepath):
+            raise FileNotFoundError(f"Version file not found: {filepath}")
+        
+        with open(filepath, "r") as f:
+            content = f.read().strip()
+        
+        # Use regex to safely extract version string instead of eval()
+        version_match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', content)
+        if version_match:
+            return version_match.group(1)
+        
+        # Fallback: try to extract quoted string from the end of the file
+        version_match = re.search(r'["\']([0-9]+\.[0-9]+\.[0-9]+(?:\.[a-zA-Z0-9]+)*)["\']', content)
+        if version_match:
+            return version_match.group(1)
+        
+        raise ValueError("Could not parse version from file content")
+        
+    except Exception as e:
+        print(f"Error reading version file {filepath}: {e}")
+        return "0.1.0"  # Default fallback version
+
+
 if __name__ == "__main__":
-    with open("README.md", "r") as f:
-        long_description = f.read()
-    fp = open("stepvideo/__version__.py", "r").read()
-    version = eval(fp.strip().split()[-1])
+    try:
+        with open("README.md", "r", encoding="utf-8") as f:
+            long_description = f.read()
+    except (FileNotFoundError, UnicodeDecodeError) as e:
+        print(f"Warning: Could not read README.md: {e}")
+        long_description = "StepVideo - A 30B DiT based text to video and image generation model"
+    
+    # Fix: Use safe version parsing instead of eval()
+    version = get_version_from_file("stepvideo/__version__.py")
 
     setup(
         name="stepvideo",

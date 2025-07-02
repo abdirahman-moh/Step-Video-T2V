@@ -13,7 +13,6 @@ def initialize_parall_group(ring_degree, ulysses_degree, tensor_parallel_degree)
     xfuser.core.distributed.initialize_model_parallel(
         sequence_parallel_degree=ulysses_degree,
         ring_degree=ring_degree,
-        ulysses_degree=ulysses_degree,
         tensor_parallel_degree=tensor_parallel_degree,
     )
     torch.cuda.set_device(dist.get_rank())
