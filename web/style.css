@@ -1,0 +1,12 @@
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.hero {
+  background: url('https://picsum.photos/1920/1080?grayscale') center/cover no-repeat;
+  height: 100vh;
+}
+
+section h2 {
+  margin-bottom: 1rem;
+}
